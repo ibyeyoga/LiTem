@@ -4,9 +4,13 @@
 Put this demo to you localhost
 
 |---html
+
 |    |---demo
+
 |         |---index.html
+
 |---ScarL.php
+
 |---index.php
 
 And you can see the render result with http://localhost/?r=demo/index
