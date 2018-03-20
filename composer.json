@@ -12,8 +12,8 @@
     "require": {},
     "autoload":{
         "psr-4":{
-            "iBye":"",
-            "ibyeyoga":""
+            "iBye\\":"",
+            "ibyeyoga\\":""
         }
     }
 }
