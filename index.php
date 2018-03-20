@@ -1,6 +1,6 @@
 <?php
 require('ScarL.php');
-$scarL = new \IBye\ScarL([
+$scarL = new \iBye\ScarL([
     'dev'=>true
 ]);
 $scarL->addFunction('sayHello',function($name){

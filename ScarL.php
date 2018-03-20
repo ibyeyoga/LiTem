@@ -1,5 +1,5 @@
 <?php
-namespace IBye;
+namespace iBye;
 /**
  * Class ScarL version 0.1
  * @package IBye

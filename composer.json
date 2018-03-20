@@ -1,0 +1,19 @@
+{
+    "name": "ibyeyoga/scar-l",
+    "description": "micro template",
+    "type": "composer-plugin",
+    "authors": [
+        {
+            "name": "yoGa",
+            "email": "yoga@ibye.cn"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {},
+    "autoload":{
+        "psr-4":{
+            "iBye":"",
+            "ibyeyoga":""
+        }
+    }
+}
