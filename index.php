@@ -1,5 +1,5 @@
 <?php
-require('ScarL.php');
+require('src\ScarL.php');
 $scarL = new \iBye\ScarL([
     'dev'=>true
 ]);

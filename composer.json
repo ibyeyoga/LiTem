@@ -17,14 +17,8 @@
   },
   "autoload": {
     "psr-4": {
-      "iBye\\": "",
-      "ibyeyoga\\": ""
+      "iBye\\": "src/",
+      "ibyeyoga\\": "src/"
     }
-  },
-  "repositories": [
-    {
-      "type": "composer",
-      "url": "https://packagist.org"
-    }
-  ]
+  }
 }
