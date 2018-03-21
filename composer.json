@@ -1,4 +1,5 @@
 {
+
     "name": "ibyeyoga/scar-l",
     "description": "micro template",
     "type": "composer-plugin",
@@ -15,5 +16,11 @@
             "iBye\\":"",
             "ibyeyoga\\":""
         }
-    }
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://packagist.org"
+        }
+    ]
 }
