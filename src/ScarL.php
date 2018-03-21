@@ -7,24 +7,30 @@ namespace iBye;
 
 class ScarL
 {
+    //you can show the error message by init ScarL with dev = true
+    //是否展示错误
     private $showError = false;
     //the dir of html root
+    //html根目录
     private $htmlDirPath;
     //the separator of route
+    //路由分隔符
     //example:demo/index
     private $routesSeparator = '/';
     //key of GET
+    //路由的键
     //example:?r=demo/index
     private $routesKey = 'r';
-    //replace target key - value
-    private $parameters = [];
+    //the parameter list which need to be replacing,format:key => value
+    //需要替换的参数列表，键值对
+    private $replacements = [];
     //white list of static file
     private $allowExtList = [
         '.html',
         '.htm',
         '.shtml'
     ];
-    //custom functions
+    //custom functions container
     private $functions = [];
 
     public function __construct($config = [])
@@ -41,7 +47,7 @@ class ScarL
             }
         }
         else{
-            $this->htmlDirPath = '.' . DIRECTORY_SEPARATOR . 'html' . DIRECTORY_SEPARATOR;
+            $this->htmlDirPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'html' . DIRECTORY_SEPARATOR;
         }
         if(!empty($config['routesSeparator'])){
             $this->routesSeparator = $config['routesSeparator'];
@@ -49,8 +55,8 @@ class ScarL
         if(!empty($config['routesKey'])){
             $this->routesKey = $config['routesKey'];
         }
-        if(!empty($config['parameters'])){
-            $this->parameters = $config['parameters'];
+        if(!empty($config['replacements'])){
+            $this->replacements = $config['replacements'];
         }
         if(!empty($config['allowExtList'])){
             if(is_array($config['allowExtList'])){
@@ -64,26 +70,26 @@ class ScarL
         $routeStr = $_GET[$this->routesKey];
         $replaceStr = str_replace($this->routesSeparator, DIRECTORY_SEPARATOR, $routeStr);
         $parentDir = dirname($routeStr);
-        $this->findParameters($this->htmlDirPath . $parentDir);
+        $this->findReplacements($this->htmlDirPath . $parentDir);
         $filePath = $this->htmlDirPath . $replaceStr;
         $this->dispatch($filePath);
     }
 
-    //find parameters file and get key - value
-    private function findParameters($dir = null){
-            $filePath = $dir . DIRECTORY_SEPARATOR . 'parameters.txt';
-            if(file_exists($filePath)){
-                $file = fopen($filePath, 'r');
-                $fileContent = @fread($file, filesize($filePath));
-                fclose($file);
-                $notHandleArray = explode(PHP_EOL, $fileContent);
-                $parameters = [];
-                foreach($notHandleArray as $keyValueStrWithSeparator){
-                    $array = explode('=', $keyValueStrWithSeparator);
-                    $parameters[$array[0]] = isset($array[1]) ? $array[1] : '';
-                }
-                $this->parameters = array_merge($this->parameters, $parameters);
+    //find replacements file and get key - value
+    private function findReplacements($dir = null){
+        $filePath = $dir . DIRECTORY_SEPARATOR . 'replacements.txt';
+        if(file_exists($filePath)){
+            $file = fopen($filePath, 'r');
+            $fileContent = @fread($file, filesize($filePath));
+            fclose($file);
+            $notHandleArray = explode(PHP_EOL, $fileContent);
+            $replacements = [];
+            foreach($notHandleArray as $keyValueStrWithSeparator){
+                $array = explode('=', $keyValueStrWithSeparator);
+                $replacements[$array[0]] = isset($array[1]) ? $array[1] : '';
             }
+            $this->replacements = array_merge($this->replacements, $replacements);
+        }
     }
 
     /**
@@ -107,15 +113,15 @@ class ScarL
      * render
      */
     public function render($page){
-        $page = $this->replaceParameters($page, $this->parameters);
+        $page = $this->replaceReplacements($page, $this->replacements);
         $page = $this->handleFunction($page);
         return $page;
     }
 
     //replace target parameter
-    private function replaceParameters($page, $parameters)
+    private function replaceReplacements($page, $replacements)
     {
-        $keyValueList = $this->createKeyValueList('', $parameters);
+        $keyValueList = $this->createKeyValueList('', $replacements);
         $keyList = [];
         $valueList = [];
         foreach($keyValueList as $key => $value){
@@ -139,12 +145,12 @@ class ScarL
 
     private function handleFunction($page){
         foreach($this->functions as $functionName => $function){
-            $regex = '/{:' . $functionName . '\((?P<parameters>.+)\)}/';
+            $regex = '/{:' . $functionName . '\((?P<replacements>.+)\)}/';
             $matches = [];
             if(preg_match($regex, $page, $matches)){
                 $allMatch = $matches[0];
-                $parameters = explode(',', $matches['parameters']);
-                $executionResult = call_user_func_array($function, $parameters);
+                $replacements = explode(',', $matches['replacements']);
+                $executionResult = call_user_func_array($function, $replacements);
                 $page = str_replace($allMatch, $executionResult, $page);
             }
         }
@@ -194,11 +200,11 @@ class ScarL
         $this->functions[$functionName] = $function;
     }
 
-    public function addParameter($key, $value){
-        $this->parameters[$key] = $value;
+    public function addReplacement($key, $value){
+        $this->replacements[$key] = $value;
     }
 
-    public function addParameters($array){
-        $this->parameters += $array;
+    public function addReplacements($array){
+        $this->replacements += $array;
     }
 }

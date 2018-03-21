@@ -6,7 +6,7 @@ $scarL = new \iBye\ScarL([
 $scarL->addFunction('sayHello',function($name){
     return 'Hello  ' . $name;
 });
-$scarL->addParameters([
+$scarL->addReplacements([
     'parameterA' => 'replace from addParameters'
 ]);
 $scarL->run();
