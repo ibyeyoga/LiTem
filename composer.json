@@ -1,28 +1,30 @@
 {
-
-    "name": "ibyeyoga/scar-l",
-    "description": "micro template",
-    "type": "composer-plugin",
-    "authors": [
-        {
-            "name": "yoGa",
-            "email": "yoga@ibye.cn"
-        }
-    ],
-    "minimum-stability": "dev",
-    "require": {
-        "php": ">=5.4.0"
-    },
-    "autoload":{
-        "psr-4":{
-            "iBye\\":"",
-            "ibyeyoga\\":""
-        }
-    },
-    "repositories": [
-        {
-            "type": "composer",
-            "url": "https://packagist.org"
-        }
-    ]
+  "name": "ibyeyoga/scar-l",
+  "description": "micro template engine",
+  "type": "library",
+  "authors": [
+    {
+      "name": "yoGa",
+      "email": "yoga@ibye.cn"
+    }
+  ],
+  "minimum-stability": "dev",
+  "require": {
+    "php": ">=5.4.0"
+  },
+  "require-dev": {
+    "php": ">=5.4.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "iBye\\": "",
+      "ibyeyoga\\": ""
+    }
+  },
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://packagist.org"
+    }
+  ]
 }
