@@ -7,6 +7,7 @@ namespace iBye;
 
 class ScarL
 {
+    //默认配置项
     private $config = [
         'mode' => 'prod',
         'isShowError' => false,
@@ -21,7 +22,7 @@ class ScarL
         ]
     ];
 
-    //custom functions container
+    //自定义函数容器
     private $functions = [];
 
     public function __construct($config = [])
@@ -41,6 +42,9 @@ class ScarL
         }
     }
 
+    /**
+     * 激活配置项
+     */
     private function activeConfig()
     {
         if ($this->mode == 'dev') {
@@ -48,7 +52,9 @@ class ScarL
         }
     }
 
-    //runner
+    /**
+     * Runner
+     */
     public function run()
     {
         if (empty($_GET[$this->routeKey])) {
@@ -64,6 +70,10 @@ class ScarL
         }
     }
 
+    /**
+     * 查找配置文件
+     * @param null $dir
+     */
     private function findConfigFile($dir = null)
     {
         $filePath = $dir . DIRECTORY_SEPARATOR . 'scarl.json';
@@ -79,7 +89,8 @@ class ScarL
     }
 
     /**
-     * dispatcher
+     * 分发器
+     * @param $filePath
      */
     private function dispatch($filePath)
     {
@@ -95,17 +106,28 @@ class ScarL
     }
 
     /**
-     * render
+     * 渲染器
+     * @param $page
+     * @return mixed
      */
     private function render($page)
     {
+        if(!empty($_GET['options'])){
+            $options = $this->dealOptions($_GET['options']);
+            $this->config['replacements']['options'] = $options;
+        }
+
         $page = $this->replaceReplacements($page);
         $page = $this->handleFunction($page);
 
         return $page;
     }
 
-    //replace target parameter
+    /**
+     * 替换值
+     * @param $page
+     * @return mixed
+     */
     private function replaceReplacements($page)
     {
         $keyValueList = $this->createKeyValueList('', $this->replacements);
@@ -120,7 +142,6 @@ class ScarL
         return str_replace($keyList, $valueList, $page);
     }
 
-    //generate keys and values,ready for replacing target parameter
     private function createKeyValueList($parentKey, $array)
     {
         $keyValueList = [];
