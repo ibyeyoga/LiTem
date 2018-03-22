@@ -7,95 +7,81 @@ namespace iBye;
 
 class ScarL
 {
-    //you can show the error message by init ScarL with dev = true
-    //是否展示错误
-    private $showError = false;
-    //the dir of html root
-    //html根目录
-    private $htmlDirPath;
-    //the separator of route
-    //路由分隔符
-    //example:demo/index
-    private $routesSeparator = '/';
-    //key of GET
-    //路由的键
-    //example:?r=demo/index
-    private $routesKey = 'r';
-    //the parameter list which need to be replacing,format:key => value
-    //需要替换的参数列表，键值对
-    private $replacements = [];
-    //white list of static file
-    private $allowExtList = [
-        '.html',
-        '.htm',
-        '.shtml'
+    private $config = [
+        'mode' => 'prod',
+        'isShowError' => false,
+        'htmlPath' => '',
+        'routeSeparator' => '/',
+        'routeKey' => 'r',
+        'replacements' => [],
+        'allowExtList' => [
+            '.html',
+            '.htm',
+            '.shtml'
+        ]
     ];
+
     //custom functions container
     private $functions = [];
 
     public function __construct($config = [])
     {
-        if(isset($config['dev']) && $config['dev'] === true){
-            $this->showError = true;
-        }
-        if(!empty($config['htmlDirPath'])){
-            $this->htmlDirPath = $config['htmlDirPath'];
-            $this->htmlDirPath = str_replace(['/','\\'], DIRECTORY_SEPARATOR, $this->htmlDirPath);
-            $tempChar = substr($this->htmlDirPath, -1);
-            if($tempChar != DIRECTORY_SEPARATOR){
-                $this->htmlDirPath .= DIRECTORY_SEPARATOR;
+        if (!empty($config)) {
+            $this->config = array_merge($this->config, $config);
+            if (!empty($config['htmlPath'])) {
+                $this->htmlPath = $config['htmlPath'];
+                $this->htmlPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $this->htmlPath);
+                $tempChar = substr($this->htmlPath, -1);
+                if ($tempChar != DIRECTORY_SEPARATOR) {
+                    $this->htmlPath .= DIRECTORY_SEPARATOR;
+                }
+            } else {
+                $this->htmlPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'html' . DIRECTORY_SEPARATOR;
             }
         }
-        else{
-            $this->htmlDirPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'html' . DIRECTORY_SEPARATOR;
-        }
-        if(!empty($config['routesSeparator'])){
-            $this->routesSeparator = $config['routesSeparator'];
-        }
-        if(!empty($config['routesKey'])){
-            $this->routesKey = $config['routesKey'];
-        }
-        if(!empty($config['replacements'])){
-            $this->replacements = $config['replacements'];
-        }
-        if(!empty($config['allowExtList'])){
-            if(is_array($config['allowExtList'])){
-                $this->allowExtList = $config['allowExtList'];
-            }
+    }
+
+    private function activeConfig()
+    {
+        if ($this->mode == 'dev') {
+            $this->isShowError = true;
         }
     }
 
     //runner
-    public function run(){
-        $routeStr = $_GET[$this->routesKey];
-        $replaceStr = str_replace($this->routesSeparator, DIRECTORY_SEPARATOR, $routeStr);
-        $parentDir = dirname($routeStr);
-        $this->findReplacements($this->htmlDirPath . $parentDir);
-        $filePath = $this->htmlDirPath . $replaceStr;
-        $this->dispatch($filePath);
+    public function run()
+    {
+        if (empty($_GET[$this->routeKey])) {
+            $this->showErrorMsg($this->isShowError ? 'running wrong' : '');
+        } else {
+            $routeStr = $_GET[$this->routeKey];
+            $replaceStr = str_replace($this->routeSeparator, DIRECTORY_SEPARATOR, $routeStr);
+            $parentDir = dirname($routeStr);
+            $this->findConfigFile($this->htmlPath . $parentDir);
+            $this->activeConfig();
+            $filePath = $this->htmlPath . $replaceStr;
+            $this->dispatch($filePath);
+        }
     }
 
-    //find replacements file and get key - value
-    private function findReplacements($dir = null){
-        $filePath = $dir . DIRECTORY_SEPARATOR . 'replacements.txt';
-        if(file_exists($filePath)){
+    private function findConfigFile($dir = null)
+    {
+        $filePath = $dir . DIRECTORY_SEPARATOR . 'scarl.json';
+        if (file_exists($filePath)) {
             $file = fopen($filePath, 'r');
             $fileContent = @fread($file, filesize($filePath));
             fclose($file);
-            $notHandleArray = explode(PHP_EOL, $fileContent);
-            $replacements = [];
-            foreach($notHandleArray as $keyValueStrWithSeparator){
-                $array = explode('=', $keyValueStrWithSeparator);
-                $replacements[$array[0]] = isset($array[1]) ? $array[1] : '';
+            $jsonArray = json_decode($fileContent, true);
+            if (!empty($jsonArray)) {
+                $this->config = array_merge_recursive($this->config, $this->transformConfig($jsonArray));
             }
-            $this->replacements = array_merge($this->replacements, $replacements);
         }
     }
 
     /**
      * dispatcher
      */
-    public function dispatch($filePath)
+    private function dispatch($filePath)
     {
         //识别文件扩展名，只能访问白名单里的文件类型
         $filePath = $this->getAllowExtFileName($filePath);
@@ -103,57 +89,66 @@ class ScarL
             $page = file_get_contents($filePath);
             echo $this->render($page);
             exit;
-        } else if($this->showError){
-            echo __METHOD__ . ':File not found or not valid format';
-            exit;
+        } else if ($this->isShowError) {
+            $this->showErrorMsg('File not found or not valid format');
         }
     }
 
     /**
      * render
      */
-    public function render($page){
-        $page = $this->replaceReplacements($page, $this->replacements);
+    private function render($page)
+    {
+        $page = $this->replaceReplacements($page);
         $page = $this->handleFunction($page);
+
         return $page;
     }
 
     //replace target parameter
-    private function replaceReplacements($page, $replacements)
+    private function replaceReplacements($page)
     {
-        $keyValueList = $this->createKeyValueList('', $replacements);
+        $keyValueList = $this->createKeyValueList('', $this->replacements);
         $keyList = [];
         $valueList = [];
-        foreach($keyValueList as $key => $value){
+
+        foreach ($keyValueList as $key => $value) {
             $keyList[] = $key;
             $valueList[] = $value;
         }
+
         return str_replace($keyList, $valueList, $page);
     }
+
     //generate keys and values,ready for replacing target parameter
-    private function createKeyValueList($parentKey, $array){
+    private function createKeyValueList($parentKey, $array)
+    {
         $keyValueList = [];
-        foreach($array as $key => $value){
-            if(is_array($value)){
-                $keyValueList = array_merge($keyValueList,$this->createKeyValueList($this->createRelationKey($parentKey, $key), $value));
+
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $keyValueList = array_merge($keyValueList, $this->createKeyValueList($this->createRelationKey($parentKey, $key), $value));
                 continue;
             }
             $keyValueList['{$' . $this->createRelationKey($parentKey, $key) . '}'] = $value;
         }
+
         return $keyValueList;
     }
 
-    private function handleFunction($page){
-        foreach($this->functions as $functionName => $function){
+    private function handleFunction($page)
+    {
+        foreach ($this->functions as $functionName => $function) {
             $regex = '/{:' . $functionName . '\((?P<replacements>.+)\)}/';
             $matches = [];
-            if(preg_match($regex, $page, $matches)){
+            if (preg_match($regex, $page, $matches)) {
                 $allMatch = $matches[0];
                 $replacements = explode(',', $matches['replacements']);
                 $executionResult = call_user_func_array($function, $replacements);
                 $page = str_replace($allMatch, $executionResult, $page);
             }
         }
+
         return $page;
     }
 
@@ -175,36 +170,86 @@ class ScarL
         $realFileName = null;
 
         foreach ($allowExtList as $ae) {
-            $tmpFileName = $filePath . $ae;
+            if(strpos($ae, '.') === false)
+                $tmpFileName = $filePath . '.' .$ae;
+            else
+                $tmpFileName = $filePath . $ae;
             if (file_exists($tmpFileName)) {
                 $realFileName = $tmpFileName;
+                break;
             }
         }
 
-        if (empty($realFileName) && $this->showError) {
-            echo __METHOD__ . ':File not found or not valid format';
-            exit;
+        if (empty($realFileName) && $this->isShowError) {
+            $this->showErrorMsg('File ' . $tmpFileName . ' not found or not valid format');
         }
 
         return $realFileName;
     }
 
-    private function createRelationKey($parentKey, $childKey){
-        if($parentKey == ''){
+    private function createRelationKey($parentKey, $childKey)
+    {
+        if ($parentKey == '') {
             return $childKey;
         }
         return $parentKey . '.' . $childKey;
     }
 
-    public function addFunction($functionName, \Closure $function){
+    private function showErrorMsg($msg)
+    {
+        echo $msg, '<br>';
+        $array = debug_backtrace();
+        echo 'file : ', $array[0]['file'], '<br>function : ', $array[1]['function'], '()<br>', 'line : ', $array[0]['line'];
+        exit;
+    }
+
+    private function transformConfig($config)
+    {
+        $tmpConfig = [];
+        foreach ($config as $key => $value) {
+            $str = ucwords(str_replace('-', ' ', $key));
+            $str = str_replace(' ', '', lcfirst($str));
+            $tmpConfig[$str] = $value;
+        }
+        return $tmpConfig;
+    }
+
+    public function addFunction($functionName, \Closure $function)
+    {
         $this->functions[$functionName] = $function;
     }
 
-    public function addReplacement($key, $value){
+    public function addReplacement($key, $value)
+    {
         $this->replacements[$key] = $value;
     }
 
-    public function addReplacements($array){
+    public function addReplacements($array)
+    {
         $this->replacements += $array;
+    }
+
+    /**
+     * 重写
+     * override
+     */
+    function __get($name)
+    {
+        // TODO: Implement __get() method.
+        if (isset($this->$name)) {
+            return $this->$name;
+        }
+        return $this->config[$name];
+    }
+
+    function __set($name, $value)
+    {
+        // TODO: Implement __set() method.
+        if(isset($this->$name)){
+            $this->$name = $value;
+        }
+        else{
+            $this->config[$name] = $value;
+        }
     }
 }

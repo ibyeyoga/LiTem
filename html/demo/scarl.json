@@ -1,0 +1,11 @@
+{
+  "mode" : "dev",
+  "route-key" : "r",
+  "route-separator" : "/",
+  "allow-ext-list" : [
+    "html"
+  ],
+  "replacements" : {
+    "parameterB" : "replace from scarl.json"
+  }
+}

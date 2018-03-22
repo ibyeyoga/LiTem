@@ -1,7 +1,7 @@
 <?php
 require('src\ScarL.php');
 $scarL = new \iBye\ScarL([
-    'dev'=>true
+    'mode' => 'dev'
 ]);
 $scarL->addFunction('sayHello',function($name){
     return 'Hello  ' . $name;
