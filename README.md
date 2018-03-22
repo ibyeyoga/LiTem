@@ -1,22 +1,15 @@
-# ScarL
-## micro template tool
+# ScarL - 一个小型模板引擎
+* 安装：
+ * composer require ibyeyoga/scar-l （推荐）
+ * 下载链接：https://github.com/ibyeyoga/ScarL/archive/master.zip
 
-Put this demo to you localhost
+* 使用
+ 1. 将安装后的项目放到任何一个PHP环境下的服务器根目录
+ 2. 即可通过 http://localhost/?r=demo/index 访问demo
+ 3. 其他使用方法可以参考demo
 
-|---html
-
-|    |---demo
-
-|         |---index.html
-
-|---ScarL.php
-
-|---index.php
-
-And you can see the render result with http://localhost/?r=demo/index
-
-PS:This class write for a project of my company as first,mainly for small outsourcing project,such as APP(they put ciphertext in http header),
-I can't get and decrypt it easily,so I try this.
-This is not the best solution,but maybe It can help for somebody.
-
-In the end,sorry for my poor english.
+* 适用场景
+ * 企业站开发
+ * 微信/APP网页开发
+ * 国际化网站开发
+ * 用作前后端分离中间件
