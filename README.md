@@ -1,6 +1,6 @@
 # ScarL - 一个小型模板引擎
 ### 安装
- * composer require ibyeyoga/scar-l:1.0-dev （推荐）
+ * composer require ibyeyoga/scar-l:dev-master （推荐）
  * 下载链接：https://github.com/ibyeyoga/ScarL/archive/master.zip
 
 ### 使用
