@@ -8,6 +8,8 @@
       "email": "service@ibye.cn"
     }
   ],
+  "license": "MIT",
+  "minimum-stability":"stable",
   "require": {
     "php": ">=5.4.0"
   },
@@ -21,7 +23,7 @@
   },
   "extra":{
     "branch-alias":{
-      "dev-master":"1.x-dev"
+      "dev-master":"dev-1.1.x"
     }
   }
 }
