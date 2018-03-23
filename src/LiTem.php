@@ -1,11 +1,12 @@
 <?php
 namespace iBye;
 /**
- * Class ScarL version 0.1
+ * http://litem.ibye.cn
+ * Class LiTem version 1.0
  * @package IBye
  */
 
-class ScarL
+class LiTem
 {
     //默认配置项
     private $config = [
@@ -41,7 +42,6 @@ class ScarL
             }
         }
     }
-
     /**
      * 激活配置项
      */
@@ -76,7 +76,7 @@ class ScarL
      */
     private function findConfigFile($dir = null)
     {
-        $filePath = $dir . DIRECTORY_SEPARATOR . 'scarl.json';
+        $filePath = $dir . DIRECTORY_SEPARATOR . 'litem.json';
         if (file_exists($filePath)) {
             $file = fopen($filePath, 'r');
             $fileContent = @fread($file, filesize($filePath));

@@ -6,6 +6,6 @@
     "html"
   ],
   "replacements" : {
-    "parameterB" : "replace from scarl.json"
+    "parameterB" : "replace from litem.json"
   }
 }

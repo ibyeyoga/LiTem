@@ -1,7 +1,7 @@
-# ScarL - 一个小型模板引擎
+# LiTem - 一个小型模板引擎
 ### 安装
- * composer require ibyeyoga/scar-l:dev-master （推荐）
- * 下载链接：https://github.com/ibyeyoga/ScarL/archive/master.zip
+ * composer require ibyeyoga/litem:dev-master （推荐）
+ * 下载链接：https://github.com/ibyeyoga/LiTem/archive/master.zip
 
 ### 使用
  1. 将安装后的项目放到任何一个PHP环境下的服务器根目录

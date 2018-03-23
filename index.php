@@ -1,6 +1,6 @@
 <?php
-require('src\ScarL.php');
-$scarL = new \iBye\ScarL([
+require('src\LiTem.php');
+$scarL = new \iBye\LiTem([
     'mode' => 'dev'
 ]);
 $scarL->addFunction('sayHello',function($name){
