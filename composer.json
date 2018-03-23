@@ -8,8 +8,6 @@
       "email": "service@ibye.cn"
     }
   ],
-  "minimum-stability": "dev",
-  "prefer-stable": true,
   "require": {
     "php": ">=5.4.0"
   },
@@ -18,8 +16,7 @@
   },
   "autoload": {
     "psr-4": {
-      "iBye\\": "src/",
-      "ibyeyoga\\": "src/"
+      "iBye\\": "src/"
     }
   },
   "extra":{
