@@ -1,11 +1,40 @@
 {
-  "mode" : "dev",
-  "route-key" : "r",
-  "route-separator" : "/",
-  "allow-ext-list" : [
+  "mode": "dev",
+  "route-key": "r",
+  "route-separator": "/",
+  "allow-ext-list": [
     "html"
   ],
-  "replacements" : {
-    "parameterB" : "replace from litem.json"
+  "replacements": {
+    "parameterB": "replace from litem.json"
+  },
+  "local": {
+    "index": {
+      "replacements": {
+        "where": "demo/index"
+      },
+      "api-replacements": {
+        "userinfo": {
+          "method": "get",
+          "url": "http://localhost/litemtest/api.php"
+        },
+        "userlist": {
+          "a": {
+            "method": "get",
+            "url": "http://localhost/litemtest/api.php"
+          },
+          "b": {
+            "method": "get",
+            "type": "js",
+            "url": "http://localhost/litemtest/api.php"
+          }
+        }
+      }
+    },
+    "index2": {
+      "replacements": {
+        "where": "demo/index2"
+      }
+    }
   }
 }
