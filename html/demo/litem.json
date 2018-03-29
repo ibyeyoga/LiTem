@@ -1,6 +1,8 @@
 {
   "mode": "dev",
   "route-key": "r",
+  "using-cache":true,
+  "cache-time":60,
   "route-separator": "/",
   "allow-ext-list": [
     "html"

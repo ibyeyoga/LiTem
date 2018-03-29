@@ -1,12 +1,12 @@
 <?php
 require('src\LiTem.php');
-$scarL = new \iBye\LiTem([
+$liTem = new \iBye\LiTem([
     'mode' => 'dev'
 ]);
-$scarL->addFunction('sayHello',function($name){
+$liTem->addFunction('sayHello',function($name){
     return 'Hello  ' . $name;
 });
-$scarL->addReplacements([
+$liTem->addReplacements([
     'parameterA' => 'replace from addParameters'
 ]);
-$scarL->run();
+$liTem->run();

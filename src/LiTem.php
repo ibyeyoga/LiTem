@@ -12,6 +12,8 @@ class LiTem
     //默认配置项
     private $config = [
         'mode' => 'prod',
+        'usingCache' => true,
+        'cacheTime' => 60,
         'isShowError' => false,
         'htmlPath' => '',
         'routeSeparator' => '/',
@@ -25,7 +27,10 @@ class LiTem
         ]
     ];
 
-    //自定义函数容器
+    private $cachePath = 'cache';
+
+    private $dispatchInfo = [];
+
     private $functions = [];
 
     private $jsVars = [];
@@ -35,7 +40,7 @@ class LiTem
     public function __construct($config = [])
     {
         if (!empty($config)) {
-            $this->config = array_merge($this->config, $config);
+            $this->config = array_replace_recursive($this->config, $config);
         }
         if (!empty($config['htmlPath'])) {
             $this->htmlPath = $config['htmlPath'];
@@ -47,6 +52,7 @@ class LiTem
         } else {
             $this->htmlPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'html' . DIRECTORY_SEPARATOR;
         }
+        $this->cachePath = $this->htmlPath . $this->cachePath;
     }
 
     /**
@@ -55,7 +61,7 @@ class LiTem
     private function activeConfig()
     {
         if ($this->mode == 'dev') {
-            $this->isShowError = true;
+            $this->config['isShowError'] = true;
         }
     }
 
@@ -71,18 +77,36 @@ class LiTem
             $replaceStr = str_replace($this->routeSeparator, DIRECTORY_SEPARATOR, $routeStr);
             $parentDir = dirname($routeStr);
             $basename = basename($routeStr);
+
             $this->findConfigFile($this->htmlPath . $parentDir, $basename);
             $this->activeConfig();
+
+            if($this->usingCache){
+                $cacheDirPath = $this->cachePath . DIRECTORY_SEPARATOR . $parentDir;
+                if ($this->checkDir($cacheDirPath)) {
+                    $cacheFilePath = $this->addCacheExt($cacheDirPath . DIRECTORY_SEPARATOR . $this->createHashString($basename));
+                    $this->dispatchInfo['cacheFilePath'] = $cacheFilePath;
+                    $mtime = filemtime($cacheFilePath);
+                    if($mtime !== false && time() - $mtime < $this->cacheTime){
+                        $this->dispatchInfo['type'] = 'cache';
+                        $this->dispatch();
+                    }
+                }
+            }
+
             $filePath = $this->htmlPath . $replaceStr;
-            $this->dispatch($filePath);
+            $this->dispatchInfo['filePath'] = $filePath;
+            $this->dispatchInfo['fileName'] = $basename;
+            $this->dispatch();
         }
     }
 
     /**
      * 查找配置文件
      * @param null $dir
+     * @param $pageName
      */
-    private function findConfigFile($dir = null, $pagename)
+    private function findConfigFile($dir = null, $pageName)
     {
         $filePath = $dir . DIRECTORY_SEPARATOR . 'litem.json';
         if (file_exists($filePath)) {
@@ -91,39 +115,45 @@ class LiTem
             fclose($file);
             $jsonArray = json_decode($fileContent, true);
             if (!empty($jsonArray)) {
-                if (!empty($jsonArray['local'][$pagename])) {
-                    $localConfig = $jsonArray['local'][$pagename];
+                if (!empty($jsonArray['local'][$pageName])) {
+                    $localConfig = $jsonArray['local'][$pageName];
                     unset($jsonArray['local']);
-                    $jsonArray = array_merge_recursive($jsonArray, $this->transformConfig($localConfig));
+                    $jsonArray = array_replace_recursive($jsonArray, $this->transformConfig($localConfig));
                 }
-                $this->config = array_merge_recursive($this->config, $this->transformConfig($jsonArray));
+                $this->config = array_replace_recursive($this->config, $this->transformConfig($jsonArray));
             }
         }
     }
 
     /**
      * 分发器
-     * @param $filePath
      */
-    private function dispatch($filePath)
+    private function dispatch()
     {
-        //识别文件扩展名，只能访问白名单里的文件类型
-        $filePath = $this->getAllowExtFileName($filePath);
+        $isCacheFile = empty($this->dispatchInfo['type']) ? false : $this->dispatchInfo['type'] == 'cache';
+        if ($isCacheFile){
+            echo file_get_contents($this->dispatchInfo['cacheFilePath']);
+            exit;
+        }
+
+        $filePath = $this->getAllowExtFileName($this->dispatchInfo['filePath']);
         if (file_exists($filePath)) {
             $page = file_get_contents($filePath);
-            echo $this->render($page);
+            echo $this->render($page, !$isCacheFile && $this->usingCache);
             exit;
         } else if ($this->isShowError) {
             $this->showErrorMsg('File not found or not valid format');
         }
+
     }
 
     /**
      * 渲染器
      * @param $page
+     * @param bool $needCache
      * @return mixed
      */
-    private function render($page)
+    private function render($page, $needCache = false)
     {
         if (!empty($_GET['options'])) {
             $options = $this->handleOptions($_GET['options']);
@@ -133,6 +163,12 @@ class LiTem
         $page = $this->replaceReplacements($page);
         $page = $this->handleFunction($page);
         $page = $this->handleJs($page);
+
+        if($needCache){
+            $fo = fopen($this->dispatchInfo['cacheFilePath'], 'w');
+            fwrite($fo, $page);
+            fclose($fo);
+        }
 
         return $page;
     }
@@ -193,11 +229,11 @@ class LiTem
             }
         }
 
-        if(!empty($jsBlock)){
+        if (!empty($jsBlock)) {
             $this->addJsBlock($jsBlock);
         }
 
-        if(!empty($chs)){
+        if (!empty($chs)) {
             $running = 0;
             do {
                 curl_multi_exec($mh, $running);
@@ -249,48 +285,44 @@ class LiTem
         return $page;
     }
 
-    private function handleJs($page){
-        if(!empty($this->jsVars)){
+    private function handleJs($page)
+    {
+        if (!empty($this->jsVars)) {
             $nullJsVars = '';
             $notNullJsVars = '';
-            foreach($this->jsVars as $key => $value){
-                if($value === null){
-                    if($nullJsVars == ''){
+            foreach ($this->jsVars as $key => $value) {
+                if ($value === null) {
+                    if ($nullJsVars == '') {
                         $nullJsVars .= "var _$$key";
-                    }
-                    else{
+                    } else {
                         $nullJsVars .= ",_$$key";
                     }
-                }
-                else{
+                } else {
                     $realValue = null;
-                    if(is_string($value)){
+                    if (is_string($value)) {
                         $realValue = "'$value'";
-                    }
-                    else if(is_array($value)){
+                    } else if (is_array($value)) {
                         $realValue = json_encode($value);
-                    }
-                    else{
+                    } else {
                         $realValue = $value;
                     }
-                    if($notNullJsVars == ''){
+                    if ($notNullJsVars == '') {
                         $notNullJsVars .= "var _$$key = $realValue";
-                    }
-                    else{
+                    } else {
                         $notNullJsVars .= ",_$$key = $realValue";
                     }
                 }
             }
             $nullJsVars .= ';';
             $notNullJsVars .= ';';
-            $this->addFrontJsBlock($nullJsVars.$notNullJsVars);
+            $this->addFrontJsBlock($nullJsVars . $notNullJsVars);
         }
 
-        if(!empty($this->jsBlocks)){
+        if (!empty($this->jsBlocks)) {
             $pattern = '/(<\s*\/body\s*>)()/i';
             $blocks = '<script src="https://unpkg.com/axios/dist/axios.min.js"></script>';
 
-            foreach($this->jsBlocks as $jsBlock){
+            foreach ($this->jsBlocks as $jsBlock) {
                 $blocks .= "<script>$jsBlock</script>";
             }
 
@@ -362,6 +394,19 @@ class LiTem
         return $tmpConfig;
     }
 
+    private function checkDir($dir)
+    {
+        return is_dir($dir) or $this->checkDir(dirname($dir)) and mkdir($dir, 0777);
+    }
+
+    private function createHashString($str){
+        return md5($str);
+    }
+
+    private function addCacheExt($filePath){
+        return $filePath . '.ltcache';
+    }
+
     public function addFunction($functionName, \Closure $function)
     {
         $this->functions[$functionName] = $function;
@@ -382,11 +427,13 @@ class LiTem
         $this->jsVars[$varName] = $value;
     }
 
-    public function addJsBlock($block){
+    public function addJsBlock($block)
+    {
         $this->jsBlocks[] = $block;
     }
 
-    public function addFrontJsBlock($block){
+    public function addFrontJsBlock($block)
+    {
         array_unshift($this->jsBlocks, $block);
     }
 
