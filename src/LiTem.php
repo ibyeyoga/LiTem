@@ -394,6 +394,21 @@ class LiTem
         return $tmpConfig;
     }
 
+    public function handleKeyValueString($str){
+        $pattern = "/(?P<key>\w+)=(?P<value>[^\n|\r\n].*)/i";
+        preg_match_all($pattern, $str, $match);
+        $keyValueList = [];
+        if(isset($match['key']) && isset($match['value'])){
+            $keyLen = count($match['key']);
+            if($keyLen == count($match['value'])){
+                for($i = 0;$i < $keyLen; $i++){
+                    $keyValueList[$match['key'][$i]] = $match['value'][$i];
+                }
+            }
+        }
+        return $keyValueList;
+    }
+
     private function checkDir($dir)
     {
         return is_dir($dir) or $this->checkDir(dirname($dir)) and mkdir($dir, 0777);
