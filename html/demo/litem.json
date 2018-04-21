@@ -17,16 +17,13 @@
       },
       "api-replacements": {
         "userinfo": {
-          "method": "get",
           "url": "http://localhost/litemtest/api.php"
         },
         "userlist": {
           "a": {
-            "method": "get",
             "url": "http://localhost/litemtest/api.php"
           },
           "b": {
-            "method": "get",
             "type": "js",
             "url": "http://localhost/litemtest/api.php"
           }

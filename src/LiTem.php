@@ -12,6 +12,8 @@ class LiTem
     //默认配置项
     private $config = [
         'mode' => 'prod',
+        'autoLang' => true,
+        'langDir' => 'langs',
         'usingCache' => true,
         'cacheTime' => 60,
         'isShowError' => false,
@@ -26,6 +28,8 @@ class LiTem
             '.shtml'
         ]
     ];
+
+    private $lang = '';
 
     private $cachePath = 'cache';
 
@@ -63,6 +67,9 @@ class LiTem
         if ($this->mode == 'dev') {
             $this->config['isShowError'] = true;
         }
+        if($this->autoLang){
+            $this->lang = $this->getPreferredLanguage();
+        }
     }
 
     /**
@@ -75,18 +82,20 @@ class LiTem
         } else {
             $routeStr = $_GET[$this->routeKey];
             $replaceStr = str_replace($this->routeSeparator, DIRECTORY_SEPARATOR, $routeStr);
-            $parentDir = dirname($routeStr);
-            $basename = basename($routeStr);
+            $parentDir = dirname($replaceStr);
+            $basename = basename($replaceStr);
+            $projectName = substr($routeStr, 0, strpos($routeStr, $this->routeSeparator));
 
             $this->findConfigFile($this->htmlPath . $parentDir, $basename);
+
             $this->activeConfig();
 
             if($this->usingCache){
                 $cacheDirPath = $this->cachePath . DIRECTORY_SEPARATOR . $parentDir;
                 if ($this->checkDir($cacheDirPath)) {
-                    $cacheFilePath = $this->addCacheExt($cacheDirPath . DIRECTORY_SEPARATOR . $this->createHashString($basename));
+                    $cacheFilePath = $this->addCacheExt($cacheDirPath . DIRECTORY_SEPARATOR . $this->createHashString($this->lang . $basename));
                     $this->dispatchInfo['cacheFilePath'] = $cacheFilePath;
-                    $mtime = filemtime($cacheFilePath);
+                    $mtime = @filemtime($cacheFilePath);
                     if($mtime !== false && time() - $mtime < $this->cacheTime){
                         $this->dispatchInfo['type'] = 'cache';
                         $this->dispatch();
@@ -97,6 +106,7 @@ class LiTem
             $filePath = $this->htmlPath . $replaceStr;
             $this->dispatchInfo['filePath'] = $filePath;
             $this->dispatchInfo['fileName'] = $basename;
+            $this->dispatchInfo['projectName'] = $projectName;
             $this->dispatch();
         }
     }
@@ -108,21 +118,32 @@ class LiTem
      */
     private function findConfigFile($dir = null, $pageName)
     {
-        $filePath = $dir . DIRECTORY_SEPARATOR . 'litem.json';
-        if (file_exists($filePath)) {
-            $file = fopen($filePath, 'r');
-            $fileContent = @fread($file, filesize($filePath));
-            fclose($file);
-            $jsonArray = json_decode($fileContent, true);
-            if (!empty($jsonArray)) {
-                if (!empty($jsonArray['local'][$pageName])) {
-                    $localConfig = $jsonArray['local'][$pageName];
-                    unset($jsonArray['local']);
-                    $jsonArray = array_replace_recursive($jsonArray, $this->transformConfig($localConfig));
+        $flag = true;
+        while($flag){
+            $filePath = $dir . DIRECTORY_SEPARATOR . 'litem.json';
+            if (file_exists($filePath)) {
+                $file = fopen($filePath, 'r');
+                $fileContent = @fread($file, filesize($filePath));
+                fclose($file);
+                $jsonArray = json_decode($fileContent, true);
+                if (!empty($jsonArray)) {
+                    if (!empty($jsonArray['local'][$pageName])) {
+                        $localConfig = $jsonArray['local'][$pageName];
+                        unset($jsonArray['local']);
+                        $jsonArray = array_replace_recursive($jsonArray, $this->transformConfig($localConfig));
+                    }
+                    $this->config = array_replace_recursive($this->config, $this->transformConfig($jsonArray));
                 }
-                $this->config = array_replace_recursive($this->config, $this->transformConfig($jsonArray));
+                $flag = false;
+            }
+            else{
+                if(!strpos($this->htmlPath,$dir))
+                    $dir = dirname($dir);
+                else
+                    $flag = false;
             }
         }
+
     }
 
     /**
@@ -203,34 +224,32 @@ class LiTem
         $mh = curl_multi_init();
         $chs = [];
 
-        $jsBlock = '';
         foreach ($keyValueList as $key => $value) {
-            if (isset($value['type']) && $value['type'] == 'js') {
-                //js调用
-                $key = str_replace('.', '_', $key);
-                $this->addJsVar($key);
-                $jsBlock .= "
-                axios.get('$value[url]').then(function (response) {
-                    if(response.data){
-                        _$$key = response.data;
-                    }
-                })
-                .catch(function (error) {
-                console.log(error);
-                });
-                ";
-            } else {
-                //php调用
+            if (strpos($value['url'],'://')) {
+                //带协议，判定为url
+                if($this->autoLang){
+                     $api = strpos($value['url'], '?') ? $value['url'] . '&lang=' . $this->lang : $value['url'] . '?lang=' . $this->lang;
+                }
                 $ch = curl_init($value['url']);
                 curl_setopt($ch, CURLOPT_HEADER, 0);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                 curl_multi_add_handle($mh, $ch);
                 $chs[$key] = $ch;
             }
-        }
-
-        if (!empty($jsBlock)) {
-            $this->addJsBlock($jsBlock);
+            else {
+                //判定为文件路径
+                $filePath = $this->htmlPath . $this->dispatchInfo['projectName'] . DIRECTORY_SEPARATOR . $this->langDir . DIRECTORY_SEPARATOR . $this->lang . DIRECTORY_SEPARATOR . $value['url'];
+                if(!file_exists($filePath)){
+                    $filePath = $value['url'];
+                }
+                $fileContent = file_get_contents($filePath);
+                $json = @json_decode($fileContent, true);
+                if(is_array($json))
+                    $val = $json;
+                else
+                    $val = $fileContent;
+                $this->addReplacement($key, $val);
+            }
         }
 
         if (!empty($chs)) {
@@ -320,8 +339,7 @@ class LiTem
 
         if (!empty($this->jsBlocks)) {
             $pattern = '/(<\s*\/body\s*>)()/i';
-            $blocks = '<script src="https://unpkg.com/axios/dist/axios.min.js"></script>';
-
+            $blocks = '';
             foreach ($this->jsBlocks as $jsBlock) {
                 $blocks .= "<script>$jsBlock</script>";
             }
@@ -412,6 +430,24 @@ class LiTem
     private function checkDir($dir)
     {
         return is_dir($dir) or $this->checkDir(dirname($dir)) and mkdir($dir, 0777);
+    }
+
+    private function getPreferredLanguage() {
+        $langs = [];
+        if (isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
+            preg_match_all('/([a-z]{1,8}(-[a-z]{1,8})?)s*(;s*qs*=s*(1|0.[0-9]+))?/i',
+                $_SERVER['HTTP_ACCEPT_LANGUAGE'], $lang_parse);
+            if (count($lang_parse[1])) {
+                $langs = array_combine($lang_parse[1], $lang_parse[4]);
+                foreach ($langs as $lang => $val) {
+                    if ($val === '') $langs[$lang] = 1;
+                }
+                arsort($langs, SORT_NUMERIC);
+            }
+        }
+        foreach ($langs as $lang => $val) { break; }
+        if (stristr($lang,"-")) {$tmp = explode("-",$lang); $lang = $tmp[0]; }
+        return $lang;
     }
 
     private function createHashString($str){
