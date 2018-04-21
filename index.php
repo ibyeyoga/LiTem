@@ -1,12 +1,22 @@
 <?php
 require('src\LiTem.php');
-$scarL = new \iBye\LiTem([
+$liTem = new \iBye\LiTem([
     'mode' => 'dev'
 ]);
-$scarL->addFunction('sayHello',function($name){
+$liTem->addFunction('sayHello',function($name){
     return 'Hello  ' . $name;
 });
-$scarL->addReplacements([
+$liTem->addReplacements([
     'parameterA' => 'replace from addParameters'
 ]);
-$scarL->run();
+//$liTem->run();
+
+$a=file_get_contents('html/demo/kv.txt');
+
+//$a=preg_replace('/\n|\r\n/','bj',$a);
+//$array = preg_split("/\n|\r\n/",$a);
+
+$keyValueList = $liTem->handleKeyValueString($a);
+echo '<pre>';
+var_dump($keyValueList);
+echo '</pre>';
