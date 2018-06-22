@@ -1,6 +1,6 @@
 <?php
 
-namespace iBye;
+namespace IBye\litem;
 /**
  * http://litem.ibye.cn
  * Class LiTem version 1.2.0

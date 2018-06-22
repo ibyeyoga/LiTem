@@ -12,7 +12,7 @@
  * 微信/APP网页开发
  * 国际化网站开发
  * 用作前后端分离中间件
- * 其他
+ * 其他数据不方便用js处理的应用
  
 ### 细节
 #### 配置文件
@@ -61,7 +61,7 @@
  ```
  //第一步先引入LiTem
  //第二步初始化
-$litem = new iBye\LiTem([
+$litem = new IBye\litem\LiTem([
     'mode' => 'prod',
     'htmlPath' => __DIR__ . DIRECTORY_SEPARATOR . 'html'
 ]);
