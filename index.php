@@ -1,6 +1,6 @@
 <?php
 require('src\LiTem.php');
-$scarL = new \iBye\LiTem([
+$scarL = new \IBye\litem\LiTem([
     'mode' => 'dev'
 ]);
 $scarL->addFunction('sayHello',function($name){
