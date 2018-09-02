@@ -1,9 +1,9 @@
 <?php
 
-namespace IBye\litem;
+namespace iBye;
 /**
  * http://litem.ibye.cn
- * Class LiTem version 1.2.0
+ * Class LiTem version 1.3.0
  * @package IBye
  */
 
@@ -17,6 +17,7 @@ class LiTem
         'usingCache' => true,
         'cacheTime' => 60,
         'isShowError' => false,
+        'autoGetRequest' => true,
         'htmlPath' => '',
         'routeSeparator' => '/',
         'routeKey' => 'r',
@@ -41,6 +42,17 @@ class LiTem
 
     private $jsBlocks = [];
 
+    private $request = null;//format like 'priject/index'
+
+    private $projectName = '';
+
+    private $fileName = '';
+
+    private $parentDir = '';
+
+    private $realRouteStr = '';
+
+
     public function __construct($config = [])
     {
         if (!empty($config)) {
@@ -59,6 +71,22 @@ class LiTem
         $this->cachePath = $this->htmlPath . $this->cachePath;
     }
 
+    public function setRequest($request = null)
+    {
+        if (!empty($request)) {
+            $routeStr = $request;
+            $replaceStr = str_replace($this->routeSeparator, DIRECTORY_SEPARATOR, $routeStr);
+            $parentDir = dirname($replaceStr);
+            $basename = basename($replaceStr);
+            $projectName = substr($routeStr, 0, strpos($routeStr, $this->routeSeparator));
+            $this->parentDir = $parentDir;
+            $this->projectName = $projectName;
+            $this->fileName = $basename;
+            $this->realRouteStr = $replaceStr;
+            $this->request = $request;
+        }
+    }
+
     /**
      * 激活配置项
      */
@@ -67,7 +95,7 @@ class LiTem
         if ($this->mode == 'dev') {
             $this->config['isShowError'] = true;
         }
-        if($this->autoLang){
+        if ($this->autoLang) {
             $this->lang = $this->getPreferredLanguage();
         }
     }
@@ -75,37 +103,44 @@ class LiTem
     /**
      * Runner
      */
-    public function run()
+    public function run($request = null)
     {
-        if (empty($_GET[$this->routeKey])) {
+        $dispatchRoute = $_GET[$this->routeKey];
+        if (!$this->autoGetRequest) {
+            $dispatchRoute = $request;
+        }
+
+        if (empty($dispatchRoute) && $this->request === null) {
             $this->showErrorMsg($this->isShowError ? 'running wrong' : '');
         } else {
-            $routeStr = $_GET[$this->routeKey];
-            $replaceStr = str_replace($this->routeSeparator, DIRECTORY_SEPARATOR, $routeStr);
-            $parentDir = dirname($replaceStr);
-            $basename = basename($replaceStr);
-            $projectName = substr($routeStr, 0, strpos($routeStr, $this->routeSeparator));
+            if ($this->request === null) {
+                $routeStr = $dispatchRoute;
+                $this->realRouteStr = str_replace($this->routeSeparator, DIRECTORY_SEPARATOR, $routeStr);
+                $this->parentDir = dirname($this->realRouteStr);
+                $this->fileName = basename($this->realRouteStr);
+                $projectName = substr($routeStr, 0, strpos($routeStr, $this->routeSeparator));
+            }
 
-            $this->findConfigFile($this->htmlPath . $parentDir, $basename);
+            $this->findConfigFile($this->htmlPath . $parentDir, $this->fileName);
 
             $this->activeConfig();
 
-            if($this->usingCache){
+            if ($this->usingCache) {
                 $cacheDirPath = $this->cachePath . DIRECTORY_SEPARATOR . $parentDir;
                 if ($this->checkDir($cacheDirPath)) {
                     $cacheFilePath = $this->addCacheExt($cacheDirPath . DIRECTORY_SEPARATOR . $this->createHashString($this->lang . $basename));
                     $this->dispatchInfo['cacheFilePath'] = $cacheFilePath;
                     $mtime = @filemtime($cacheFilePath);
-                    if($mtime !== false && time() - $mtime < $this->cacheTime){
+                    if ($mtime !== false && time() - $mtime < $this->cacheTime) {
                         $this->dispatchInfo['type'] = 'cache';
                         $this->dispatch();
                     }
                 }
             }
 
-            $filePath = $this->htmlPath . $replaceStr;
+            $filePath = $this->htmlPath . $this->realRouteStr;
             $this->dispatchInfo['filePath'] = $filePath;
-            $this->dispatchInfo['fileName'] = $basename;
+            $this->dispatchInfo['fileName'] = $this->fileName;
             $this->dispatchInfo['projectName'] = $projectName;
             $this->dispatch();
         }
@@ -118,8 +153,8 @@ class LiTem
      */
     private function findConfigFile($dir = null, $pageName)
     {
-        $flag = true;
-        while($flag){
+        $flag = false;
+        while ($flag) {
             $filePath = $dir . DIRECTORY_SEPARATOR . 'litem.json';
             if (file_exists($filePath)) {
                 $file = fopen($filePath, 'r');
@@ -135,9 +170,8 @@ class LiTem
                     $this->config = array_replace_recursive($this->config, $this->transformConfig($jsonArray));
                 }
                 $flag = false;
-            }
-            else{
-                if(!strpos($this->htmlPath,$dir))
+            } else {
+                if (!strpos($this->htmlPath, $dir))
                     $dir = dirname($dir);
                 else
                     $flag = false;
@@ -152,7 +186,7 @@ class LiTem
     private function dispatch()
     {
         $isCacheFile = empty($this->dispatchInfo['type']) ? false : $this->dispatchInfo['type'] == 'cache';
-        if ($isCacheFile){
+        if ($isCacheFile) {
             echo file_get_contents($this->dispatchInfo['cacheFilePath']);
             exit;
         }
@@ -185,7 +219,7 @@ class LiTem
         $page = $this->handleFunction($page);
         $page = $this->handleJs($page);
 
-        if($needCache){
+        if ($needCache) {
             $fo = fopen($this->dispatchInfo['cacheFilePath'], 'w');
             fwrite($fo, $page);
             fclose($fo);
@@ -225,26 +259,25 @@ class LiTem
         $chs = [];
 
         foreach ($keyValueList as $key => $value) {
-            if (strpos($value['url'],'://')) {
+            if (strpos($value['url'], '://')) {
                 //带协议，判定为url
-                if($this->autoLang){
-                     $api = strpos($value['url'], '?') ? $value['url'] . '&lang=' . $this->lang : $value['url'] . '?lang=' . $this->lang;
+                if ($this->autoLang) {
+                    $api = strpos($value['url'], '?') ? $value['url'] . '&lang=' . $this->lang : $value['url'] . '?lang=' . $this->lang;
                 }
                 $ch = curl_init($value['url']);
                 curl_setopt($ch, CURLOPT_HEADER, 0);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                 curl_multi_add_handle($mh, $ch);
                 $chs[$key] = $ch;
-            }
-            else {
+            } else {
                 //判定为文件路径
                 $filePath = $this->htmlPath . $this->dispatchInfo['projectName'] . DIRECTORY_SEPARATOR . $this->langDir . DIRECTORY_SEPARATOR . $this->lang . DIRECTORY_SEPARATOR . $value['url'];
-                if(!file_exists($filePath)){
+                if (!file_exists($filePath)) {
                     $filePath = $value['url'];
                 }
                 $fileContent = file_get_contents($filePath);
                 $json = @json_decode($fileContent, true);
-                if(is_array($json))
+                if (is_array($json))
                     $val = $json;
                 else
                     $val = $fileContent;
@@ -412,14 +445,15 @@ class LiTem
         return $tmpConfig;
     }
 
-    public function handleKeyValueString($str){
+    public function handleKeyValueString($str)
+    {
         $pattern = "/(?P<key>\w+)=(?P<value>[^\n|\r\n].*)/i";
         preg_match_all($pattern, $str, $match);
         $keyValueList = [];
-        if(isset($match['key']) && isset($match['value'])){
+        if (isset($match['key']) && isset($match['value'])) {
             $keyLen = count($match['key']);
-            if($keyLen == count($match['value'])){
-                for($i = 0;$i < $keyLen; $i++){
+            if ($keyLen == count($match['value'])) {
+                for ($i = 0; $i < $keyLen; $i++) {
                     $keyValueList[$match['key'][$i]] = $match['value'][$i];
                 }
             }
@@ -432,7 +466,8 @@ class LiTem
         return is_dir($dir) or $this->checkDir(dirname($dir)) and mkdir($dir, 0777);
     }
 
-    private function getPreferredLanguage() {
+    private function getPreferredLanguage()
+    {
         $langs = [];
         if (isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
             preg_match_all('/([a-z]{1,8}(-[a-z]{1,8})?)s*(;s*qs*=s*(1|0.[0-9]+))?/i',
@@ -445,16 +480,23 @@ class LiTem
                 arsort($langs, SORT_NUMERIC);
             }
         }
-        foreach ($langs as $lang => $val) { break; }
-        if (stristr($lang,"-")) {$tmp = explode("-",$lang); $lang = $tmp[0]; }
+        foreach ($langs as $lang => $val) {
+            break;
+        }
+        if (stristr($lang, "-")) {
+            $tmp = explode("-", $lang);
+            $lang = $tmp[0];
+        }
         return $lang;
     }
 
-    private function createHashString($str){
+    private function createHashString($str)
+    {
         return md5($str);
     }
 
-    private function addCacheExt($filePath){
+    private function addCacheExt($filePath)
+    {
         return $filePath . '.ltcache';
     }
 
