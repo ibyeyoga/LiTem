@@ -121,14 +121,14 @@ class LiTem
                 $projectName = substr($routeStr, 0, strpos($routeStr, $this->routeSeparator));
             }
 
-            $this->findConfigFile($this->htmlPath . $parentDir, $this->fileName);
+            $this->findConfigFile($this->htmlPath . $this->parentDir, $this->fileName);
 
             $this->activeConfig();
 
             if ($this->usingCache) {
-                $cacheDirPath = $this->cachePath . DIRECTORY_SEPARATOR . $parentDir;
+                $cacheDirPath = $this->cachePath . DIRECTORY_SEPARATOR . $this->parentDir;
                 if ($this->checkDir($cacheDirPath)) {
-                    $cacheFilePath = $this->addCacheExt($cacheDirPath . DIRECTORY_SEPARATOR . $this->createHashString($this->lang . $basename));
+                    $cacheFilePath = $this->addCacheExt($cacheDirPath . DIRECTORY_SEPARATOR . $this->createHashString($this->lang . $this->fileName));
                     $this->dispatchInfo['cacheFilePath'] = $cacheFilePath;
                     $mtime = @filemtime($cacheFilePath);
                     if ($mtime !== false && time() - $mtime < $this->cacheTime) {
@@ -153,7 +153,7 @@ class LiTem
      */
     private function findConfigFile($dir = null, $pageName)
     {
-        $flag = false;
+        $flag = true;
         while ($flag) {
             $filePath = $dir . DIRECTORY_SEPARATOR . 'litem.json';
             if (file_exists($filePath)) {
